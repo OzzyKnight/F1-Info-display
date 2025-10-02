@@ -117,7 +117,7 @@ unsigned lastRound = 0, nextRound = 0;
 String lastDate, lastName, lastCircuit, lastLoc;
 String nextDate, nextName, nextCircuit, nextLoc;
 String lastGP, nextGP;
-String nextTime; //countdown string
+String nextTime, lastTime;
 //#########################################################################################
 
 #define MY_TZ "GMT0BST,M3.5.0/1,M10.5.0/2"  // Change time zone if you are outside UK
@@ -136,10 +136,6 @@ struct tm timeinfo;
 String strDateUSA, strDateUK, timeStr;
 String abbrev0, abbrev1, abbrev2;
 String fam0, fam1, fam2;
-//#########################################################################################
-
-void configModeCallback(WiFiManager* myWiFiManager) {
-}
 //#########################################################################################
 
 // Only display first 3 letters of each last name (needs done this way because of Hulkenbergs umlaut)
@@ -215,7 +211,7 @@ void handleOTAUpload() {
   }
 }
 //#########################################################################################
-void drawString(int x, int y, String str, screenAlignment alignment) {
+void drawStringRED(int x, int y, String str, screenAlignment alignment) {
   int16_t x1, y1;
   uint16_t w, h;
   display.setTextWrap(false);
@@ -223,13 +219,37 @@ void drawString(int x, int y, String str, screenAlignment alignment) {
   if (alignment == RIGHT) x = x - w;
   if (alignment == CENTER) x = x - w / 2;
   gfx.setCursor(x, y + h);
-  display.setTextColor(GxEPD_RED);
+  gfx.setForegroundColor(GxEPD_RED);
+  gfx.setBackgroundColor(GxEPD_WHITE);
+  display.setTextColor(GxEPD_RED,GxEPD_WHITE);
+  gfx.print(str);
+}
+//#########################################################################################
+void drawStringBLACK(int x, int y, String str, screenAlignment alignment) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  display.setTextWrap(false);
+  display.getTextBounds(str, x, y, &x1, &y1, &w, &h);
+  if (alignment == RIGHT) x = x - w;
+  if (alignment == CENTER) x = x - w / 2;
+  gfx.setForegroundColor(GxEPD_BLACK);
+  gfx.setBackgroundColor(GxEPD_WHITE);
+  gfx.setCursor(x, y + h);
+  display.setTextColor(GxEPD_BLACK,GxEPD_WHITE);
   gfx.print(str);
 }
 //#########################################################################################
 
+void configModeCallback(WiFiManager* myWiFiManager) {
 
+    display.fillScreen(GxEPD_WHITE);
+  drawStringRED(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, "Please connect to WiFi", CENTER);
+  drawStringBLACK(SCREEN_WIDTH/2, 84, "SSID:  F1 tracker", CENTER);
+  drawStringBLACK(SCREEN_WIDTH/2, 104, "PASS:  formula1  ", CENTER);
 
+      display.display(); 
+}
+//#########################################################################################
 void DrawTime() {
 
   char bufTime[16];
@@ -261,7 +281,7 @@ void DrawTime() {
   Serial.println(strDateUSA);
 
   gfx.setFont(u8g2_font_helvB08_tf);
-  drawString(SCREEN_WIDTH / 2, 0, "Today: " + strDateUK, CENTER);
+  drawStringBLACK(SCREEN_WIDTH / 2, 0, "Today: " + strDateUK, CENTER);
   //  drawString(SCREEN_WIDTH / 2, 0, "Updated: " + timeStr + "  " + strDateUK, CENTER);  // Top header with time
   display.drawLine(0, 11, SCREEN_WIDTH, 11, GxEPD_RED);
 }
@@ -379,9 +399,7 @@ void DrawLastRace() {
     String displayDate = day + "-" + month + "-" + year;
     String lastInfo = lastGP;
 
-    drawString(SCREEN_WIDTH / 2, 118, lastInfo.c_str(), CENTER);  // Last race location
-
-
+    drawStringBLACK(SCREEN_WIDTH / 2, 118, lastInfo.c_str(), CENTER);  // Last race location
 
     if (httpGetJson(resultsUrl.c_str())) {
       JsonArray podium = doc["MRData"]["RaceTable"]["Races"][0]
@@ -413,10 +431,10 @@ void DrawLastRace() {
   display.drawRect(104, 95, 30, 21, GxEPD_BLACK);   // 2nd place box
   display.drawRect(162, 104, 30, 12, GxEPD_BLACK);  // 3rd place box
 
-  gfx.setForegroundColor(GxEPD_RED);
-  drawString(SCREEN_WIDTH / 2 - 1, 77, abbrev0.c_str(), CENTER);  // 1st place name
-  drawString(SCREEN_WIDTH / 2 - 38, 86, abbrev1.c_str(), LEFT);   // 2nd place name
-  drawString(SCREEN_WIDTH / 2 + 20, 95, abbrev2.c_str(), LEFT);   // 3rd place name
+  //gfx.setForegroundColor(GxEPD_RED);
+  drawStringRED(SCREEN_WIDTH / 2 - 1, 77, abbrev0.c_str(), CENTER);  // 1st place name
+  drawStringRED(SCREEN_WIDTH / 2 - 38, 86, abbrev1.c_str(), LEFT);   // 2nd place name
+  drawStringRED(SCREEN_WIDTH / 2 + 20, 95, abbrev2.c_str(), LEFT);   // 3rd place name
 }
 //#########################################################################################
 
@@ -434,7 +452,7 @@ void DrawPolePosition(unsigned round) {
   JsonArray quals = race["QualifyingResults"].as<JsonArray>();
   if (quals.size() == 0) {
     Serial.println("No qualifying data yet");
-    drawString(0, 24, "Pole Pos: No data yet", LEFT);
+    drawStringBLACK(0, 24, "Pole Pos: No data yet", LEFT);
     return;
   }
 
@@ -448,8 +466,8 @@ void DrawPolePosition(unsigned round) {
                 given.c_str(), family.c_str(),
                 team.c_str());
 
-  String quali = "Pole Pos: " + family + team;
-  drawString(0, 24, quali.c_str(), LEFT);
+  String quali = "Pole Pos: " + given + " " + family;
+  drawStringBLACK(0, 24, quali.c_str(), LEFT);
 }
 
 //#########################################################################################
@@ -476,9 +494,9 @@ void DrawNextRace() {
   String displayDate = day + "-" + month + "-" + year;  // dd-mm-yyyy
   String nextInfo = "Next: " + nextGP + ", " + displayDate;
 
-  gfx.setForegroundColor(GxEPD_BLACK);
+  //gfx.setForegroundColor(GxEPD_BLACK);
   gfx.setFont(u8g2_font_helvB08_tf);
-  drawString(0, 14, nextInfo.c_str(), LEFT);
+  drawStringBLACK(0, 14, nextInfo.c_str(), LEFT);
 }
 //#########################################################################################
 
@@ -513,31 +531,31 @@ void DrawDrivers() {
       pointsLine[i] = ptsline;
 
       Serial.println(drvline + " - " + ptsline);
-      gfx.setForegroundColor(GxEPD_RED);
-      drawString(223, 13, "Top 10 Drivers", LEFT);
-      gfx.setForegroundColor(GxEPD_BLACK);
+      //gfx.setForegroundColor(GxEPD_RED);
+      drawStringRED(223, 13, "Top 10 Drivers", LEFT);
+      //gfx.setForegroundColor(GxEPD_BLACK);
 
-      drawString(listx, 24, driverLine[0].c_str(), LEFT);
-      drawString(listx, 34, driverLine[1].c_str(), LEFT);
-      drawString(listx, 44, driverLine[2].c_str(), LEFT);
-      drawString(listx, 54, driverLine[3].c_str(), LEFT);
-      drawString(listx, 64, driverLine[4].c_str(), LEFT);
-      drawString(listx, 74, driverLine[5].c_str(), LEFT);
-      drawString(listx, 84, driverLine[6].c_str(), LEFT);
-      drawString(listx, 94, driverLine[7].c_str(), LEFT);
-      drawString(listx, 104, driverLine[8].c_str(), LEFT);
-      drawString(listx, 114, driverLine[9].c_str(), LEFT);
+      drawStringBLACK(listx, 24, driverLine[0].c_str(), LEFT);
+      drawStringBLACK(listx, 34, driverLine[1].c_str(), LEFT);
+      drawStringBLACK(listx, 44, driverLine[2].c_str(), LEFT);
+      drawStringBLACK(listx, 54, driverLine[3].c_str(), LEFT);
+      drawStringBLACK(listx, 64, driverLine[4].c_str(), LEFT);
+      drawStringBLACK(listx, 74, driverLine[5].c_str(), LEFT);
+      drawStringBLACK(listx, 84, driverLine[6].c_str(), LEFT);
+      drawStringBLACK(listx, 94, driverLine[7].c_str(), LEFT);
+      drawStringBLACK(listx, 104, driverLine[8].c_str(), LEFT);
+      drawStringBLACK(listx, 114, driverLine[9].c_str(), LEFT);
 
-      drawString(296, 24, pointsLine[0].c_str(), RIGHT);
-      drawString(296, 34, pointsLine[1].c_str(), RIGHT);
-      drawString(296, 44, pointsLine[2].c_str(), RIGHT);
-      drawString(296, 54, pointsLine[3].c_str(), RIGHT);
-      drawString(296, 64, pointsLine[4].c_str(), RIGHT);
-      drawString(296, 74, pointsLine[5].c_str(), RIGHT);
-      drawString(296, 84, pointsLine[6].c_str(), RIGHT);
-      drawString(296, 94, pointsLine[7].c_str(), RIGHT);
-      drawString(296, 104, pointsLine[8].c_str(), RIGHT);
-      drawString(296, 114, pointsLine[9].c_str(), RIGHT);
+      drawStringBLACK(296, 24, pointsLine[0].c_str(), RIGHT);
+      drawStringBLACK(296, 34, pointsLine[1].c_str(), RIGHT);
+      drawStringBLACK(296, 44, pointsLine[2].c_str(), RIGHT);
+      drawStringBLACK(296, 54, pointsLine[3].c_str(), RIGHT);
+      drawStringBLACK(296, 64, pointsLine[4].c_str(), RIGHT);
+      drawStringBLACK(296, 74, pointsLine[5].c_str(), RIGHT);
+      drawStringBLACK(296, 84, pointsLine[6].c_str(), RIGHT);
+      drawStringBLACK(296, 94, pointsLine[7].c_str(), RIGHT);
+      drawStringBLACK(296, 104, pointsLine[8].c_str(), RIGHT);
+      drawStringBLACK(296, 114, pointsLine[9].c_str(), RIGHT);
     }
   }
 }
@@ -565,15 +583,15 @@ void DrawConstructors() {
                           + " - " + pts;
 
       constrLines[i] = constrLine;
-      gfx.setForegroundColor(GxEPD_RED);
-      drawString(0, 64, "Top 5 Teams:", LEFT);
-      gfx.setForegroundColor(GxEPD_BLACK);
+      //gfx.setForegroundColor(GxEPD_RED);
+      drawStringRED(0, 64, "Top 5 Teams:", LEFT);
+      //gfx.setForegroundColor(GxEPD_BLACK);
 
-      drawString(0, 74, constrLines[0].c_str(), LEFT);
-      drawString(0, 84, constrLines[1].c_str(), LEFT);
-      drawString(0, 94, constrLines[2].c_str(), LEFT);
-      drawString(0, 104, constrLines[3].c_str(), LEFT);
-      drawString(0, 114, constrLines[4].c_str(), LEFT);
+      drawStringBLACK(0, 74, constrLines[0].c_str(), LEFT);
+      drawStringBLACK(0, 84, constrLines[1].c_str(), LEFT);
+      drawStringBLACK(0, 94, constrLines[2].c_str(), LEFT);
+      drawStringBLACK(0, 104, constrLines[3].c_str(), LEFT);
+      drawStringBLACK(0, 114, constrLines[4].c_str(), LEFT);
 
       Serial.printf("  #%s %s — %sp (%s wins)\n",
                     c["Constructor"]["name"].as<const char*>(),
@@ -591,9 +609,10 @@ void setup() {
   display.init();
   display.setRotation(3);
   gfx.begin(display);
-  gfx.setFontMode(0); //fix for text ghosting
+  gfx.setFontMode(0);
   gfx.setFontDirection(0);
-  gfx.setForegroundColor(GxEPD_BLACK);
+
+  //gfx.setForegroundColor(GxEPD_BLACK);
   gfx.setBackgroundColor(GxEPD_WHITE);
   gfx.setFont(u8g2_font_helvB10_tf);
   display.fillScreen(GxEPD_WHITE);
@@ -602,7 +621,7 @@ void setup() {
   //  splash screen
   display.fillScreen(GxEPD_WHITE);
   display.drawBitmap(SCREEN_WIDTH / 2 - logoWidth / 2, 50, F1_Logo, logoWidth, logoHeight, GxEPD_RED);
-  drawString(40, 74, "It's Lights out and away we go!", LEFT);
+  drawStringBLACK(40, 74, "It's Lights out and away we go!!!", LEFT);
 
   // WiFiManager
   WiFiManager wifiManager;
@@ -689,6 +708,7 @@ void loop() {
   if (now - lastUpdate >= UPDATE_INTERVAL) {
     lastUpdate = now;
     if (getLocalTime(&timeinfo)) {
+        display.fillScreen(GxEPD_WHITE);
       DrawTime();
       FetchCalendar();
       DrawDrivers();
