@@ -17,12 +17,12 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
   ####################################################################
 
-Screeen ISP Connections:
+Screeen SPI Connections:
 BUSY = 4
 CS = 5
 RST = 16
 DC = 17
-SCK = 18
+SCK = 18 (Clock pin, could be also marked as SCL)
 MISO = 19
 MOSI = 23
 
