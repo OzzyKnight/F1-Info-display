@@ -17,12 +17,12 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
   ####################################################################
 
-Screeen SPI Connections:
+Screeen ISP Connections:
 BUSY = 4
 CS = 5
 RST = 16
 DC = 17
-SCK = 18 (Clock pin, could be also marked as SCL)
+SCK = 18
 MISO = 19
 MOSI = 23
 
@@ -618,10 +618,7 @@ void setup() {
   display.fillScreen(GxEPD_WHITE);
   display.setFullWindow();
 
-  //  splash screen
-  display.fillScreen(GxEPD_WHITE);
-  display.drawBitmap(SCREEN_WIDTH / 2 - logoWidth / 2, 50, F1_Logo, logoWidth, logoHeight, GxEPD_RED);
-  drawStringBLACK(40, 74, "It's Lights out and away we go!!!", LEFT);
+ //////////////
 
   // WiFiManager
   WiFiManager wifiManager;
@@ -679,6 +676,11 @@ void setup() {
   API_RESULTS = API_BASE + "/results/";
   API_DRIVER_STAND = API_BASE + "/driverstandings/";
   API_CONSTR_STAND = API_BASE + "/constructorstandings/";
+
+   //  splash screen
+  display.fillScreen(GxEPD_WHITE);
+  display.drawBitmap(SCREEN_WIDTH / 2 - logoWidth / 2, 50, F1_Logo, logoWidth, logoHeight, GxEPD_RED);
+  drawStringBLACK(40, 74, "It's Lights out and away we go!!!", LEFT);
 
   server.on("/", HTTP_GET, handleOTAUpdatePage);
   server.on("/api", HTTP_GET, handleF1Page);
