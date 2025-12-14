@@ -71,6 +71,10 @@ String API_RESULTS;
 String API_DRIVER_STAND;
 String API_CONSTR_STAND;
 
+int lastSeasonYear = 0;
+int nextSeasonYear = 0;
+time_t nextRaceEpoch = 0;
+
 #define SCREEN_WIDTH 296
 #define SCREEN_HEIGHT 128
 #define listx 225
@@ -136,6 +140,8 @@ struct tm timeinfo;
 String strDateUSA, strDateUK, timeStr;
 String abbrev0, abbrev1, abbrev2;
 String fam0, fam1, fam2;
+
+
 //#########################################################################################
 
 // Only display first 3 letters of each last name (needs done this way because of Hulkenbergs umlaut)
@@ -310,10 +316,64 @@ static time_t timegm_utc(struct tm* tm) {
        + tm->tm_min  * 60
        + tm->tm_sec;
 }
+
+
+//#########################################################################################
+
+bool FetchNextRaceForYear(int year) {
+  String racesUrl = "https://api.jolpi.ca/ergast/f1/" + String(year) + "/races/";
+  if (!httpGetJson(racesUrl.c_str())) return false;
+
+  nextRound = 0;
+  nextDate = nextName = nextCircuit = nextLoc = nextGP = nextTime = "";
+
+  JsonArray races = doc["MRData"]["RaceTable"]["Races"].as<JsonArray>();
+  time_t now = time(nullptr);
+
+  for (JsonObject race : races) {
+    const char* dateStr = race["date"].as<const char*>();
+    const char* timeStrZ = race["time"].as<const char*>();
+    unsigned rnd = race["round"].as<unsigned>();
+    String circuit = race["Circuit"]["circuitName"].as<const char*>();
+    String GPname  = race["raceName"].as<const char*>();
+    String loc     = String(race["Circuit"]["Location"]["locality"].as<const char*>())
+                   + ", " + race["Circuit"]["Location"]["country"].as<const char*>();
+
+    struct tm tmRace = {};
+    if (sscanf(dateStr, "%4d-%2d-%2d", &tmRace.tm_year, &tmRace.tm_mon, &tmRace.tm_mday) != 3) continue;
+    tmRace.tm_year -= 1900;
+    tmRace.tm_mon  -= 1;
+
+    int h,m,s;
+    if (!timeStrZ || sscanf(timeStrZ, "%2d:%2d:%2d", &h, &m, &s) != 3) { h=0; m=0; s=0; } // defensive
+    tmRace.tm_hour = h; tmRace.tm_min = m; tmRace.tm_sec = s;
+    tmRace.tm_isdst = 0;
+
+    time_t raceEpoch = timegm_utc(&tmRace);
+
+    if (raceEpoch >= now) {
+      nextRound   = rnd;
+      nextDate    = dateStr;
+      nextTime    = timeStrZ ? timeStrZ : "";
+      nextName    = GPname;
+      nextCircuit = circuit;
+      nextLoc     = loc;
+      nextGP      = GPname;
+      nextGP.replace("Grand Prix","GP");
+      return true;
+    }
+  }
+  return false;
+}
+
 //#########################################################################################
 
 void FetchCalendar() {
   lastRound = nextRound = 0;
+
+  lastDate = lastName = lastCircuit = lastLoc = lastGP = lastTime = "";
+  nextDate = nextName = nextCircuit = nextLoc = nextGP = nextTime = "";
+  abbrev0 = abbrev1 = abbrev2 = ""; 
 
   if (!httpGetJson(API_RACES.c_str())) return;
 
@@ -348,11 +408,15 @@ void FetchCalendar() {
     // 3) convert to epoch (UTC)
     time_t raceEpoch = timegm_utc(&tmRace);
 
+
+  int raceYear = tmRace.tm_year + 1900;
+
     // 4) decide past vs future
     if (raceEpoch < now) {
       // this race is over
       if (rnd > lastRound) {
         lastRound   = rnd;
+        lastSeasonYear = raceYear;
         lastDate    = dateStr;
         lastTime    = timeStr;
         lastName    = GPname;
@@ -365,6 +429,8 @@ void FetchCalendar() {
     else if (nextRound == 0) {
       // first future race
       nextRound   = rnd;
+      nextSeasonYear = raceYear;
+      nextRaceEpoch  = raceEpoch;   
       nextDate    = dateStr;
       nextTime    = timeStr;
       nextName    = GPname;
@@ -438,8 +504,8 @@ void DrawLastRace() {
 }
 //#########################################################################################
 
-void DrawPolePosition(unsigned round) {
-  String url = API_BASE
+void DrawPolePosition(int seasonYear, unsigned round) {
+  String url = API_BASE + String(seasonYear)
                + "/" + String(round)
                + "/qualifying/";
 
@@ -473,13 +539,18 @@ void DrawPolePosition(unsigned round) {
 //#########################################################################################
 
 void DrawNextRace() {
+
   Serial.println("\n=== Next Race ===");
   if (nextRound == 0) {
     Serial.println("  (season complete)");
-  } else {
-    Serial.printf("  Round %u — %s on %s at %s\n",
-                  nextRound, nextCircuit.c_str(),
-                  nextDate.c_str(), nextLoc.c_str());
+  //} else {
+  //  Serial.printf("  Round %u — %s on %s at %s\n",
+  //                nextRound, nextCircuit.c_str(),
+  //                nextDate.c_str(), nextLoc.c_str());
+  gfx.setFont(u8g2_font_helvB08_tf);
+  drawStringBLACK(0, 14, "Next: season complete", LEFT);
+  return; 
+
   }
 
   //converted date from yyyy-mm-dd to dd-mm-yyyy for screen
@@ -713,11 +784,16 @@ void loop() {
         display.fillScreen(GxEPD_WHITE);
       DrawTime();
       FetchCalendar();
+       // if season end, try fetch data for next season
+      if (nextRound == 0) {
+        int currentYear = timeinfo.tm_year + 1900;
+        FetchNextRaceForYear(currentYear + 1);
+      }
       DrawDrivers();
       DrawConstructors();
       DrawLastRace();
       DrawNextRace();
-      if (nextRound != 0) DrawPolePosition(nextRound);
+      if (nextRound != 0) DrawPolePosition(nextSeasonYear, nextRound);
       display.display(); 
     }
   }
