@@ -124,7 +124,7 @@ String lastGP, nextGP;
 String nextTime, lastTime;
 //#########################################################################################
 
-#define MY_TZ "GMT0BST,M3.5.0/1,M10.5.0/2"  // Change time zone if you are outside UK
+#define MY_TZ "EST5EDT,M3.2.0,M11.1.0"  // Change time zone if you are outside UK
 #define NTP1 "pool.ntp.org"
 #define NTP2 "time.nist.gov"
 
